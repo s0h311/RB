@@ -32,8 +32,9 @@ public class SimRace {
       }
     });
 
-    track.stream()
-        .sorted(Car::compareTo)
-        .forEach(c -> LOGGER.info(c.toString()));
+    for (int i = 0; i < track.size(); i++) {
+      Car c = track.stream().sorted(Car::compareTo).toList().get(i);
+      LOGGER.info((i + 1) + "." + " " + c.toString());
+    }
   }
 }
