@@ -1,4 +1,5 @@
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import org.slf4j.Logger;
@@ -9,7 +10,7 @@ public class SimRace {
   public static final Logger LOGGER = LoggerFactory.getLogger(SimRace.class);
   public final int numberOfCars;
   public final int rounds;
-  public Queue<Car> track;
+  public List<Car> track;
 
   public SimRace(int numberOfCars, int rounds) {
     this.numberOfCars = numberOfCars;
@@ -32,8 +33,10 @@ public class SimRace {
       }
     });
 
+    track = track.stream().sorted(Car::compareTo).toList();
+
     for (int i = 0; i < track.size(); i++) {
-      Car c = track.stream().sorted(Car::compareTo).toList().get(i);
+      Car c = track.get(i);
       LOGGER.info((i + 1) + "." + " " + c.toString());
     }
   }
