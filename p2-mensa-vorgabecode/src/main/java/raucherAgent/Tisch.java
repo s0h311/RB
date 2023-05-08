@@ -10,7 +10,7 @@ public class Tisch extends Thread{
 
   public static final Logger LOGGER = LoggerFactory.getLogger(Raucher.class);
   private List<Agent> agenten;
-  private List<Raucher> raucher;
+  private List<Raucher> raucherList;
   private Object monitor = new Object();
   private int anzahlRunde = 0;
 
@@ -24,10 +24,10 @@ public class Tisch extends Thread{
         new Agent("Agent Smith 2")
     );
 
-    raucher = List.of(
-        new Raucher("Trinity", monitor),
-        new Raucher("Morpheus", monitor),
-        new Raucher("Neo", monitor)
+    raucherList = List.of(
+        new Raucher("Trinity", monitor, "papier"),
+        new Raucher("Morpheus", monitor, "tabak"),
+        new Raucher("Neo", monitor, "streichholz")
     );
   }
 
@@ -49,17 +49,17 @@ public class Tisch extends Thread{
       synchronized (monitor) {
         LOGGER.error("====RUNDE %s BEGINNNT====".formatted(anzahlRunde));
         Agent nextAgent = agenten.get(rand.nextInt(2));
-        Raucher nextRaucher = raucher.get(rand.nextInt(3));
         List<String> kartenDesAgents = nextAgent.legeAufDenTisch();
-        LOGGER.error("%s zieht die Karten: %s und %s".formatted(nextAgent.getName(), kartenDesAgents.get(0), kartenDesAgents.get(1)));
+        Raucher nextRaucher = raucherList.get(0);
+
+        for (Raucher raucher : raucherList) {
+          if (!kartenDesAgents.contains(raucher.legeAufDenTisch())) nextRaucher = raucher;
+        }
         String karteDesRauchers = nextRaucher.legeAufDenTisch();
+
+        LOGGER.error("%s zieht die Karten: %s und %s".formatted(nextAgent.getName(), kartenDesAgents.get(0), kartenDesAgents.get(1)));
         LOGGER.error("%s zieht die Karte: %s".formatted(nextRaucher.getName(), karteDesRauchers));
 
-        while(kartenDesAgents.contains(karteDesRauchers)) {
-          nextRaucher = raucher.get(rand.nextInt(3));
-          karteDesRauchers = nextRaucher.legeAufDenTisch();
-          LOGGER.error("NOCHMAL: %s zieht die Karte: %s".formatted(nextRaucher.getName(), karteDesRauchers));
-        }
         try {
           nextRaucher.start();
           monitor.wait();

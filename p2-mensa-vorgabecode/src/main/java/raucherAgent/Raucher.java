@@ -8,14 +8,15 @@ import org.slf4j.LoggerFactory;
 public class Raucher extends Thread {
 
   public static final Logger LOGGER = LoggerFactory.getLogger(Raucher.class);
-  private String[] zutaten = { "tabak", "papier", "streichholz" };
+  private String zutat;
   private Object monitor;
   private String status;
 
-  public Raucher(String name, Object monitor) {
+  public Raucher(String name, Object monitor, String zutat) {
     super.setName(name);
     this.monitor = monitor;
     status = "will eine endlich rauchen";
+    this.zutat = zutat;
   }
 
   @Override
@@ -28,8 +29,7 @@ public class Raucher extends Thread {
   }
 
   public String legeAufDenTisch() {
-    int rand = new Random().nextInt(3);
-    return zutaten[rand];
+    return zutat;
   }
 
   public void rauchen() throws InterruptedException {
