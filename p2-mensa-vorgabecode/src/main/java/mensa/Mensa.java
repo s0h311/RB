@@ -1,6 +1,7 @@
 package mensa;
 
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,8 @@ public class Mensa {
 	public LinkedList<Kasse> kassenliste;
 
 	private LinkedList<Student> studentenListe;
+
+	public ReentrantLock auswahlMutex = new ReentrantLock(true); // Faire Warteschlange vor dieser Kasse!
 
 	public void starteSimulation() {
 		Kasse aktKasse;

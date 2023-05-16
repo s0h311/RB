@@ -23,21 +23,24 @@ public class Student extends Thread {
 				/*
 				 * Waehle die Kasse mit der kuerzesten Warteschlange --> Sortiere absteigend
 				 */
+				meineMensa.auswahlMutex.lock();
 				Collections.sort(meineMensa.kassenliste);
 				besteKasse = meineMensa.kassenliste.getFirst();
-				System.err.print(this.getName() + " waehlt Kasse " + besteKasse.getKassenName() + "\n");
+				System.err.print(this.getName() + " waehlt Kasse " + besteKasse.getKassenName());
 				meineMensa.showScore();
 				
 				// Warteschlangenzaehler erhoehen
 				besteKasse.inkrAnzahlStudenten();
+				meineMensa.auswahlMutex.unlock();
 
 				// An Kasse anstellen
-				besteKasse.kassenMutex.lock();
 				besteKasse.enter(getName());
 				// Kasse verlassen --> Warteschlangenzaehler erniedrigen
-            System.err.println(this.getName() + " verlaesst Kasse " + besteKasse.getKassenName());            
-				besteKasse.kassenMutex.unlock();
+            System.err.println(this.getName() + " verlaesst Kasse " + besteKasse.getKassenName());
+				meineMensa.auswahlMutex.lock();
 				besteKasse.dekrAnzahlStudenten();
+				meineMensa.auswahlMutex.unlock();
+
 				// Fuer unbestimmte Zeit essen
 				essen();
 			}

@@ -6,19 +6,28 @@ import java.util.Random;
 
 public class Agent extends Thread {
 
-  public Agent(String name) {
+  Tisch tisch;
+
+  public Agent(String name, Tisch tisch) {
     super.setName(name);
+    this.tisch = tisch;
   }
 
   @Override
   public void run() {
-
+    try {
+      legeAufDenTisch();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  public List<String> legeAufDenTisch() {
-    int rand = new Random().nextInt(3);
-    List<String> zutaten = new ArrayList<>(List.of("tabak", "papier", "streichholz"));
-    zutaten.remove(rand);
-    return zutaten;
+  public void legeAufDenTisch() throws InterruptedException {
+    while(!isInterrupted()) {
+      int rand = new Random().nextInt(3);
+      List<Zutat> zutaten = new ArrayList<>(List.of(Zutat.PAPIER, Zutat.STREICHHOLZ, Zutat.TABAK));
+      zutaten.remove(rand);
+      tisch.enter(zutaten);
+    }
   }
 }

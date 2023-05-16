@@ -1,72 +1,41 @@
 package raucherAgent;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+public class Tisch implements BoundedBuffer<Zutat> {
 
-public class Tisch extends Thread{
-
-  public static final Logger LOGGER = LoggerFactory.getLogger(Raucher.class);
-  private List<Agent> agenten;
-  private List<Raucher> raucherList;
-  private Object monitor = new Object();
-  private int anzahlRunde = 0;
+  private List<Zutat> zutaten;
+  private int groesse = 2;
 
   public Tisch() {
-    init();
-  }
-
-  private void init() {
-    agenten = List.of(
-        new Agent("Agent Smith 1"),
-        new Agent("Agent Smith 2")
-    );
-
-    raucherList = List.of(
-        new Raucher("Trinity", monitor, "papier"),
-        new Raucher("Morpheus", monitor, "tabak"),
-        new Raucher("Neo", monitor, "streichholz")
-    );
+    zutaten = new ArrayList<>();
   }
 
   @Override
-  public void run() {
-    try {
-      runde();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+  public synchronized void enter(List<Zutat> zutaten) throws InterruptedException {
+    while (this.zutaten.size() == groesse) {
+      this.wait();
     }
+    System.err.println(AnsiColor.GREEN + "Es befinden sich %s Zutaten auf dem Tisch".formatted(this.zutaten.size()));
+    this.zutaten = zutaten;
+    System.err.println(AnsiColor.RED + "Einer der Agenten legt die Zutaten: %s und %s".formatted(zutaten.get(0).name(), zutaten.get(1).name()));
+    this.notifyAll();
   }
 
-  public void runde() throws InterruptedException {
-    while(!isInterrupted()) {
-      anzahlRunde++;
-      Random rand = new Random();
-      init();
-
-      synchronized (monitor) {
-        LOGGER.error("====RUNDE %s BEGINNNT====".formatted(anzahlRunde));
-        Agent nextAgent = agenten.get(rand.nextInt(2));
-        List<String> kartenDesAgents = nextAgent.legeAufDenTisch();
-        Raucher nextRaucher = raucherList.get(0);
-
-        for (Raucher raucher : raucherList) {
-          if (!kartenDesAgents.contains(raucher.legeAufDenTisch())) nextRaucher = raucher;
-        }
-        String karteDesRauchers = nextRaucher.legeAufDenTisch();
-
-        LOGGER.error("%s zieht die Karten: %s und %s".formatted(nextAgent.getName(), kartenDesAgents.get(0), kartenDesAgents.get(1)));
-        LOGGER.error("%s zieht die Karte: %s".formatted(nextRaucher.getName(), karteDesRauchers));
-
-        try {
-          nextRaucher.start();
-          monitor.wait();
-        } catch (InterruptedException e) {
-          throw new RuntimeException("Game Over");
-        }
-      }
+  @Override
+  public synchronized List<Zutat> remove(String name) throws InterruptedException {
+    while (zutaten.size() == 0) {
+      this.wait();
     }
+    List<Zutat> oldList = zutaten;
+    zutaten = new ArrayList<>();
+    System.err.println(AnsiColor.YELLOW + "%s hat die Zutaten genommen".formatted(name));
+    this.notifyAll();
+    return oldList;
+  }
+
+  public synchronized List<Zutat> getZutaten() {
+    return zutaten;
   }
 }

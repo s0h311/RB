@@ -25,13 +25,13 @@ public class Kasse implements Comparable<Kasse> {
 	 */
 	public void enter(String name) throws InterruptedException {
 
-			//kassenMutex.lock();
+			kassenMutex.lock();
 			// Zahlvorgang abwarten
 			System.err.print(name + " bezahlt jetzt an der Kasse %s\n".formatted(getKassenName()));
 			bezahlen();
 
 			// Kasse verlassen
-			//kassenMutex.unlock();
+			kassenMutex.unlock();
 
 	}
 

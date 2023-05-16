@@ -2,48 +2,38 @@ package raucherAgent;
 
 import java.util.Random;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class Raucher extends Thread {
 
-  public static final Logger LOGGER = LoggerFactory.getLogger(Raucher.class);
-  private String zutat;
-  private Object monitor;
-  private String status;
+  private Zutat zutat;
+  private Tisch tisch;
 
-  public Raucher(String name, Object monitor, String zutat) {
+  public Raucher(String name, Zutat zutat, Tisch tisch) {
     super.setName(name);
-    this.monitor = monitor;
-    status = "will eine endlich rauchen";
     this.zutat = zutat;
+    this.tisch = tisch;
   }
 
   @Override
   public void run() {
     try {
-      rauchen();
+      nimmDieZutaten();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
   }
 
-  public String legeAufDenTisch() {
-    return zutat;
-  }
-
-  public void rauchen() throws InterruptedException {
-    synchronized (monitor) {
-      status = "kann endlich rauchen";
-      LOGGER.info(getName() + " raucht jetzt");
-      sleep(new Random().nextInt(1001));
-      LOGGER.info(getName() + " ist zuende");
-      monitor.notifyAll();
-      status = "will eine endlich rauchen";
+  public void nimmDieZutaten() throws InterruptedException {
+    while(!isInterrupted()) {
+      if(!tisch.getZutaten().contains(zutat)) {
+        tisch.remove(getName());
+        System.err.println(AnsiColor.BLUE + getName() + " raucht jetzt");
+        rauchen();
+      }
     }
   }
 
-  public String getStatus() {
-    return getName() + status;
+  public void rauchen() throws InterruptedException {
+    sleep(new Random().nextInt(1001));
+    System.err.println(AnsiColor.BLUE + getName() + " ist zuende");
   }
 }
