@@ -6,8 +6,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 public class Worker extends Thread {
 
@@ -17,12 +21,10 @@ public class Worker extends Thread {
   private BufferedReader input;
   private DataOutputStream output;
   private final String CRLF = "\r\n";
-  private boolean active;
 
   public Worker(Socket socket, Server server) {
     this.socket = socket;
     this.server = server;
-    active = true;
   }
 
   @Override
@@ -45,18 +47,28 @@ public class Worker extends Thread {
             filePath = getFilePath(line);
           }
         }
+        System.err.println(filePath);
+        if (filePath.equals("time")) {
+          DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm:ss");
+          withStatusCode("200 OK");
+          withContentType(".txt");
+          withPayload(LocalTime.now().format(format));
+        } else if (filePath.equals("date")) {
+          DateTimeFormatter format = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+          withStatusCode("200 OK");
+          withContentType(".txt");
+          withPayload(LocalDate.now().format(format));
+        } else {
+          if (filePath.isEmpty()) {
+            filePath = "/index.html";
+          }
+          Path currentWorkingDir = Paths.get("").toAbsolutePath();
 
-        if (filePath.isEmpty()) {
-          filePath = "/index.html";
+          withStatusCode("200 OK");
+          withContentType(filePath);
+          withFilePayload(
+              currentWorkingDir + "\\p3-webserver\\src\\main\\resources\\assets\\" + filePath);
         }
-        
-        Path currentWorkingDir = Paths.get("").toAbsolutePath();
-
-        withStatusCode("200 OK");
-        withContentType("text/html");
-        withFilePayload(
-            currentWorkingDir + "\\p3-webserver\\src\\main\\resources\\assets\\" + filePath);
-
         stopConnection();
       }
     } catch (IOException e) {
@@ -81,7 +93,7 @@ public class Worker extends Thread {
       return true;
     }
     withStatusCode("406");
-    withContentType("text/plain");
+    withContentType(".txt");
     withConnection("keep-alive");
     withPayload("406 Not Acceptable, only Firefox is allowed");
     stopConnection();
@@ -106,7 +118,16 @@ public class Worker extends Thread {
     write("HTTP/1.0 " + statusCode);
   }
 
-  private void withContentType(String contentType) {
+  private void withContentType(String filePath) {
+    String fileType = filePath.substring(filePath.indexOf("."));
+    String contentType = switch (fileType) {
+      case ".gif" -> "image/gif";
+      case ".jpg" -> "image/jpeg";
+      case ".ico" -> "image/x-icon";
+      case ".pdf" -> "application/pdf";
+      case ".html" -> "text/html";
+      default -> "text/plain";
+    };
     write("Content-Type: " + contentType);
   }
 
@@ -128,11 +149,13 @@ public class Worker extends Thread {
 
   private void withFilePayload(String path) {
     File file = new File(path);
-    withContentLength(file.length() + 2);
-    withCRLF();
-    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
 
+    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
       output.flush();
+
+      withContentLength(Files.size(Path.of(path)));
+      withCRLF();
+
       byte[] dataBuffer = new byte[1024];
       int bytesRead;
       while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
@@ -151,7 +174,6 @@ public class Worker extends Thread {
   }
 
   private void stopConnection() {
-    active = false;
     try {
       socket.close();
     } catch (IOException e) {
