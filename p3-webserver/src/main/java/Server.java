@@ -17,14 +17,14 @@ public class Server {
 
   public void start() {
     try {
-      ServerSocket serverSocket = new ServerSocket(42069);
+      ServerSocket serverSocket = new ServerSocket(3333);
       while (active) {
         Socket connectionSocket = serverSocket.accept();
         System.err.println("========================");
-        System.err.println("New Client");
+        System.err.println("New Request");
         System.err.println("========================\n");
 
-        new Worker(connectionSocket, this).start();
+        new Worker(connectionSocket).start();
       }
     } catch (IOException e) {
       e.printStackTrace();

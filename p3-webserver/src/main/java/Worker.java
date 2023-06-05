@@ -3,28 +3,25 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class Worker extends Thread {
 
   private Socket socket;
-  private Server server;
-
   private BufferedReader input;
   private DataOutputStream output;
   private final String CRLF = "\r\n";
 
-  public Worker(Socket socket, Server server) {
+  public Worker(Socket socket) {
     this.socket = socket;
-    this.server = server;
   }
 
   @Override
@@ -42,37 +39,26 @@ public class Worker extends Thread {
         while ((line = input.readLine()) != null && !line.isEmpty()) {
           System.err.println(line);
           validateLine(line);
-
-          if (line.toLowerCase().contains("get")) {
-            filePath = getFilePath(line);
-          }
+          filePath = line.toLowerCase().contains("get") ? getFilePath(line).toLowerCase() : filePath;
         }
-        System.err.println(filePath);
-        if (filePath.equals("time")) {
-          DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm:ss");
-          withStatusCode("200 OK");
-          withContentType(".txt");
-          withPayload(LocalTime.now().format(format));
-        } else if (filePath.equals("date")) {
-          DateTimeFormatter format = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-          withStatusCode("200 OK");
-          withContentType(".txt");
-          withPayload(LocalDate.now().format(format));
+
+        if (filePath.equals("time") || filePath.equals("date")) {
+          handleRestRequest(filePath);
         } else {
-          if (filePath.isEmpty()) {
-            filePath = "/index.html";
-          }
+          filePath = filePath.isEmpty() ? "/index.html" : filePath;
           Path currentWorkingDir = Paths.get("").toAbsolutePath();
+          validatePath(currentWorkingDir + "\\p3-webserver\\src\\main\\resources\\assets\\" + filePath);
 
           withStatusCode("200 OK");
           withContentType(filePath);
-          withFilePayload(
-              currentWorkingDir + "\\p3-webserver\\src\\main\\resources\\assets\\" + filePath);
+          withFilePayload(currentWorkingDir + "\\p3-webserver\\src\\main\\resources\\assets\\" + filePath);
         }
         stopConnection();
       }
     } catch (IOException e) {
       e.printStackTrace();
+    } finally {
+      stopConnection();
     }
   }
 
@@ -92,12 +78,21 @@ public class Worker extends Thread {
     if (!line.toLowerCase().contains("user-agent") || line.toLowerCase().contains("firefox")) {
       return true;
     }
-    withStatusCode("406");
-    withContentType(".txt");
-    withConnection("keep-alive");
-    withPayload("406 Not Acceptable, only Firefox is allowed");
-    stopConnection();
+    withError(406, "Not Acceptable, only Firefox is allowed");
     return false;
+  }
+
+  private boolean validatePath(String path) {
+    if (!path.contains(".")) {
+      withError(400, "Bad Request :/");
+      return false;
+    }
+    File file = new File(path);
+    if (!file.isFile()) {
+      withError(404, "Not Found :/");
+      return false;
+    }
+    return true;
   }
 
   private void write(String message) {
@@ -119,24 +114,24 @@ public class Worker extends Thread {
   }
 
   private void withContentType(String filePath) {
-    String fileType = filePath.substring(filePath.indexOf("."));
-    String contentType = switch (fileType) {
-      case ".gif" -> "image/gif";
-      case ".jpg" -> "image/jpeg";
-      case ".ico" -> "image/x-icon";
-      case ".pdf" -> "application/pdf";
-      case ".html" -> "text/html";
-      default -> "text/plain";
-    };
-    write("Content-Type: " + contentType);
+    try {
+      String fileType = filePath.substring(filePath.indexOf("."));
+      String contentType = switch (fileType) {
+        case ".gif" -> "image/gif";
+        case ".jpg" -> "image/jpeg";
+        case ".ico" -> "image/x-icon";
+        case ".pdf" -> "application/pdf";
+        case ".html" -> "text/html";
+        default -> "text/plain";
+      };
+      write("Content-Type: " + contentType);
+    } catch (StringIndexOutOfBoundsException e) {
+      withError(400, "Bad Request");
+    }
   }
 
   private void withContentLength(long contentLength) {
     write("Content-Length: " + contentLength);
-  }
-
-  private void withConnection(String connectionType) {
-    write("Connection: " + connectionType);
   }
 
   private void withPayload(String payload) {
@@ -148,9 +143,7 @@ public class Worker extends Thread {
   }
 
   private void withFilePayload(String path) {
-    File file = new File(path);
-
-    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
+    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(path))) {
       output.flush();
 
       withContentLength(Files.size(Path.of(path)));
@@ -163,7 +156,8 @@ public class Worker extends Thread {
       }
       input.close();
       output.close();
-
+    } catch (FileNotFoundException fe) {
+      withError(404, "Not Found :(");
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -180,5 +174,23 @@ public class Worker extends Thread {
       e.printStackTrace();
     }
     //interrupt();
+  }
+
+  private void handleRestRequest(String path) {
+    DateTimeFormatter format =
+        path.equals("time") ?
+            DateTimeFormatter.ofPattern("HH:mm:ss") :
+            DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+    withStatusCode("200 OK");
+    withContentType(".txt");
+    withPayload(LocalDateTime.now().format(format));
+  }
+
+  private void withError(int statusCode, String message) {
+    withStatusCode(statusCode + "");
+    withContentType(".txt");
+    withPayload("%s %s".formatted(statusCode, message));
+    stopConnection();
   }
 }
